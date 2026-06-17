@@ -1,10 +1,26 @@
 [package]
 name = "itasha-report-core"
 description = "Safe, opt-in crash/error/issue reporting SDK core (sanitizer, spool, transport, IngestBackend). Transmits nothing without explicit consent."
-version.workspace = true
+# First consumable release; plan-732/733/734 pin the `itasha-report-core-v0.1.0`
+# tag. Explicit (not workspace-inherited 0.0.0) so the tag maps to a real semver.
+version = "0.1.0"
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
 rust-version.workspace = true
 
+# Exact-pinned production dependencies (see dependency-management.md).
+# rationale: serde/serde_json — config + envelope serialization; ureq — the
+# single hardened HTTP transport (pure-rust rustls, no openssl, no unsafe in
+# this crate's surface); webbrowser — cross-platform issue-form launcher;
+# directories — platform-aware config-dir / home detection for the sanitizer
+# and spool. NO vendor LLM/telemetry/SaaS SDK (AES Clause 5).
 [dependencies]
+serde = { version = "=1.0.228", features = ["derive"] }
+serde_json = "=1.0.150"
+ureq = "=3.2.1"
+webbrowser = "=1.1.0"
+directories = "=6.0.0"
+
+[dev-dependencies]
+proptest = "=1.8.0"
