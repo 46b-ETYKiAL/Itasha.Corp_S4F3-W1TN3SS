@@ -1,0 +1,10 @@
+[package]
+name = "itasha-crash-capture"
+description = "Unsafe-ISOLATED native minidump capture (Tier-2). The ONLY W1TN3SS crate allowed unsafe, so consuming apps stay #![forbid(unsafe_code)]."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]

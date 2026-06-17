@@ -1,0 +1,10 @@
+[package]
+name = "itasha-report-core"
+description = "Safe, opt-in crash/error/issue reporting SDK core (sanitizer, spool, transport, IngestBackend). Transmits nothing without explicit consent."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]

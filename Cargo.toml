@@ -1,0 +1,11 @@
+# W1TN3SS client SDK workspace — privacy-first, opt-in crash & issue reporting.
+[workspace]
+resolver = "2"
+members = ["crates/itasha-report-core", "crates/itasha-crash-capture"]
+
+[workspace.package]
+version = "0.0.0"
+edition = "2021"
+license = "Apache-2.0"
+repository = "https://github.com/46b-ETYKiAL/Itasha.Corp_S4F3-W1TN3SS"
+rust-version = "1.78"
