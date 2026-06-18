@@ -1,9 +1,12 @@
 [package]
 name = "itasha-report-core"
 description = "Safe, opt-in crash/error/issue reporting SDK core (sanitizer, spool, transport, IngestBackend). Transmits nothing without explicit consent."
-# First consumable release; plan-732/733/734 pin the `itasha-report-core-v0.1.0`
-# tag. Explicit (not workspace-inherited 0.0.0) so the tag maps to a real semver.
-version = "0.1.0"
+# Explicit (not workspace-inherited 0.0.0) so each tag maps to a real semver.
+# v0.1.0: first consumable release (pinned by plan-732/733/734).
+# v0.2.0: ADDITIVE E2E-encryption to a developer key (the `e2e` module +
+#   `Envelope::sealed`). v0.1.0 consumers are unaffected — the existing
+#   consent/preview/scrub/spool/send APIs are unchanged.
+version = "0.2.0"
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
