@@ -7,4 +7,30 @@ license.workspace = true
 repository.workspace = true
 rust-version.workspace = true
 
+# Exact-pinned production dependencies (see dependency-management.md). These are
+# the Embark out-of-process crash-capture stack — they carry unsafe/FFI (signal
+# handlers, ptrace, Mach APIs, inline asm), which is precisely why they are
+# isolated in THIS sibling crate and run minidump-writer in a SEPARATE monitor
+# process. crash-context is pinned to the 0.6.x line because crash-handler 0.7,
+# minidumper 0.10, and minidump-writer 0.12 all require `crash-context ^0.6`.
+# itasha-report-core is consumed as a workspace PATH sibling for the
+# Sentry-envelope + spool + report types (it stays #![forbid(unsafe_code)]).
 [dependencies]
+crash-handler = "=0.7.0"
+minidumper = "=0.10.1"
+minidump-writer = "=0.12.0"
+crash-context = "=0.6.3"
+itasha-report-core = { path = "../itasha-report-core" }
+
+[dev-dependencies]
+# sadness-generator: Embark's controlled-crash harness for the (ignored,
+# guarded) sadness-generator capture test. Dev-only — never in the shipped lib.
+sadness-generator = "=0.7.0"
+
+# The out-of-process MONITOR is a SEPARATE binary (the whole point of the Embark
+# design: the crashed process's memory may be corrupted, so the dump is written
+# from another process). Keeping it a `[[bin]]` is what the unsafe-isolation
+# structural test asserts.
+[[bin]]
+name = "w1tn3ss-crash-monitor"
+path = "src/bin/monitor.rs"
