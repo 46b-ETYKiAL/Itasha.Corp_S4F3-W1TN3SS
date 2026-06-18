@@ -58,6 +58,7 @@
 pub mod backend;
 pub mod config;
 pub mod consent;
+pub mod e2e;
 pub mod envelope;
 pub mod intake;
 pub mod preview;

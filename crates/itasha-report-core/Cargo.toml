@@ -14,13 +14,24 @@ rust-version.workspace = true
 # single hardened HTTP transport (pure-rust rustls, no openssl, no unsafe in
 # this crate's surface); webbrowser — cross-platform issue-form launcher;
 # directories — platform-aware config-dir / home detection for the sanitizer
-# and spool. NO vendor LLM/telemetry/SaaS SDK (AES Clause 5).
+# and spool; age — E2E-encryption of the scrubbed report payload to a developer
+# public key (X25519 multi-recipient, audited pure-safe-Rust; the private
+# decrypt key lives ONLY in developer triage tooling, never in this crate).
+# NO vendor LLM/telemetry/SaaS SDK (AES Clause 5).
 [dependencies]
 serde = { version = "=1.0.228", features = ["derive"] }
 serde_json = "=1.0.150"
 ureq = "=3.2.1"
 webbrowser = "=1.1.0"
 directories = "=6.0.0"
+# Default features only: X25519 recipients/identities are built in and pure
+# safe-Rust (no `ssh`/`rsa`/`cli-common` feature pulled — keeps the surface
+# minimal + `#![forbid(unsafe_code)]`-clean for this crate).
+age = { version = "=0.11.3", default-features = false }
 
 [dev-dependencies]
 proptest = "=1.8.0"
+# The E2E integration contract generates a fresh test keypair in-process via
+# `age` (the same crate the production code seals with) and reads the secret
+# string back through `age::secrecy::ExposeSecret`. No secret key is committed.
+age = { version = "=0.11.3", default-features = false }

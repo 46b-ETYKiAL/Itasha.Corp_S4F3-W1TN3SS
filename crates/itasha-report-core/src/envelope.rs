@@ -28,6 +28,7 @@
 
 use serde::{Deserialize, Serialize};
 
+use crate::e2e::SealedPayload;
 use crate::report::{Report, Stream};
 
 /// A single item within an envelope.
@@ -145,6 +146,51 @@ impl Envelope {
         }
 
         Self { event_id, items }
+    }
+
+    /// Build an envelope carrying an **E2E-sealed** payload as a single opaque
+    /// `attachment` item.
+    ///
+    /// This is the privacy-keystone wire shape (hardening control #1): after the
+    /// client scrubs + previews + seals the report via
+    /// [`crate::e2e::seal_report`], the resulting [`SealedPayload`] rides inside
+    /// the **same** Sentry envelope format as an opaque attachment
+    /// (`attachment_type = "application/age-encrypted"`). The lean pipeline and
+    /// a future self-hosted Sentry ingest the identical envelope unchanged — and
+    /// neither can read the attachment, because only the developer private key
+    /// decrypts it.
+    ///
+    /// No plaintext `event` item is emitted: the *whole* report (Tier-1 text +
+    /// Tier-2 attachment bytes) is inside the ciphertext, so the operator stores
+    /// only ciphertext. The event_id is still a per-report (non-stable) id.
+    #[must_use]
+    pub fn sealed(sealed: &SealedPayload, event_id: Option<String>) -> Self {
+        let items = vec![EnvelopeItem {
+            item_type: "attachment".to_string(),
+            attachment_type: Some(SealedPayload::CONTENT_TYPE.to_string()),
+            filename: Some(SealedPayload::ATTACHMENT_NAME.to_string()),
+            content_type: Some(SealedPayload::CONTENT_TYPE.to_string()),
+            payload: sealed.bytes().to_vec(),
+        }];
+        Self { event_id, items }
+    }
+
+    /// Recover the opaque [`SealedPayload`] from an envelope built by
+    /// [`Envelope::sealed`] — the single `application/age-encrypted` attachment
+    /// item. Returns `None` if the envelope carries no such item (e.g. a plain
+    /// event envelope).
+    ///
+    /// This is what the developer triage tooling calls after pulling the
+    /// envelope off the wire/store, before decrypting with the developer key.
+    #[must_use]
+    pub fn sealed_payload(&self) -> Option<SealedPayload> {
+        self.items
+            .iter()
+            .find(|i| {
+                i.item_type == "attachment"
+                    && i.attachment_type.as_deref() == Some(SealedPayload::CONTENT_TYPE)
+            })
+            .map(|i| SealedPayload::from_bytes(i.payload.clone()))
     }
 
     /// Serialize to the newline-delimited Sentry envelope wire bytes.
@@ -293,5 +339,87 @@ mod tests {
     fn malformed_input_errors_not_panics() {
         assert!(Envelope::from_bytes(b"no newline here").is_err());
         assert!(Envelope::from_bytes(b"").is_err());
+    }
+
+    // ---- E2E sealed-payload envelope contract (hardening control #1, T1.2) ----
+
+    use crate::e2e::{open_report, seal_report, DeveloperIdentity, SealedPayload};
+
+    fn test_identity() -> DeveloperIdentity {
+        // Fresh in-process identity; the secret never lands in the repo. Build
+        // the developer identity from its public recipient + secret via the
+        // shared e2e test seam (round-tripping through the string forms).
+        crate::e2e::testutil::generated_identity()
+    }
+
+    #[test]
+    fn sealed_payload_rides_inside_envelope_and_round_trips() {
+        let id = test_identity();
+        let recipient = id.to_recipient();
+
+        // A crash report with an opaque minidump attachment.
+        let report = Report {
+            stream: Stream::CrashReports,
+            title: "crash".into(),
+            body: "thread 'main' panicked at <HOME>/main.rs:1".into(),
+            metadata: vec![("os".into(), "linux".into())],
+            attachments: vec![Attachment {
+                name: "minidump".into(),
+                content_type: "application/x-minidump".into(),
+                bytes: vec![0u8, b'\n', 1, 2, b'\n', 255],
+            }],
+        };
+
+        // CLIENT: scrub+preview happened upstream; seal, then wrap in envelope.
+        let sealed = seal_report(&report, &[recipient]).unwrap();
+        let env = Envelope::sealed(&sealed, Some("d".repeat(32)));
+
+        // WIRE: the envelope round-trips through the Sentry wire format unchanged.
+        let bytes = env.to_bytes();
+        let back = Envelope::from_bytes(&bytes).unwrap();
+        assert_eq!(
+            env, back,
+            "sealed envelope must survive the wire round-trip"
+        );
+
+        // It carries exactly one opaque age-encrypted attachment, no event item.
+        assert_eq!(back.items.len(), 1);
+        assert_eq!(back.items[0].item_type, "attachment");
+        assert_eq!(
+            back.items[0].attachment_type.as_deref(),
+            Some(SealedPayload::CONTENT_TYPE)
+        );
+
+        // DEVELOPER: pull the sealed payload back out and decrypt it.
+        let recovered_sealed = back
+            .sealed_payload()
+            .expect("envelope carries a sealed payload");
+        let opened = open_report(&recovered_sealed, &id).unwrap();
+        assert_eq!(opened, report, "developer recovers the exact sealed report");
+    }
+
+    #[test]
+    fn operator_sees_only_ciphertext_in_sealed_envelope() {
+        let id = test_identity();
+        let report = Report::manual_issue("title", "secret note WIREMARKER body");
+        let sealed = seal_report(&report, &[id.to_recipient()]).unwrap();
+        let env = Envelope::sealed(&sealed, None);
+        let wire = env.to_bytes();
+        // The operator stores these wire bytes; the plaintext must not appear.
+        assert!(!contains_subslice(&wire, b"WIREMARKER"));
+        assert!(!contains_subslice(&wire, b"secret note"));
+    }
+
+    #[test]
+    fn plain_event_envelope_has_no_sealed_payload() {
+        // A non-sealed envelope must report no sealed payload (the discriminator
+        // is the application/age-encrypted attachment_type).
+        let report = Report::crash("plain");
+        let env = Envelope::from_report(&report, None);
+        assert!(env.sealed_payload().is_none());
+    }
+
+    fn contains_subslice(haystack: &[u8], needle: &[u8]) -> bool {
+        haystack.windows(needle.len()).any(|w| w == needle)
     }
 }
