@@ -1,7 +1,11 @@
 # W1TN3SS client SDK workspace — privacy-first, opt-in crash & issue reporting.
 [workspace]
 resolver = "2"
-members = ["crates/itasha-report-core", "crates/itasha-crash-capture"]
+members = [
+    "crates/itasha-report-core",
+    "crates/itasha-crash-capture",
+    "crates/itasha-report-transport-tor",
+]
 
 [workspace.package]
 version = "0.0.0"

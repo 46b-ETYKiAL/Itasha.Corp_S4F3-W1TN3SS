@@ -1,0 +1,70 @@
+[package]
+name = "itasha-report-transport-tor"
+description = "Truly-anonymous (sender-IP-free) Tor v3 onion transport for the W1TN3SS reporting SDK. Embeds Arti (pure-Rust Tor); POSTs the Sentry envelope to a config-injected .onion endpoint over an in-process TorClient. Opt-in: apps that do not depend on this crate keep itasha-report-core's dependency tree + cargo-vet surface unchanged."
+# v0.1.0: first release of the anonymous transport (PR4 of the true-anonymity
+# track). Separate crate (NOT a feature on itasha-report-core) so the large
+# Arti `tor-*` dependency tree + its cargo-vet burden are imported ONLY by apps
+# that opt into Tor — the base crate's dep tree is untouched.
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+# Exact-pinned production dependencies (see dependency-management.md).
+# rationale:
+#  itasha-report-core — the SDK spine; we implement its `backend::IngestBackend`
+#    trait and reuse its `Spool`, `Envelope`, `Report`, and `ConsentToken`. No
+#    re-implementation; this crate is a pure transport.
+#  arti-client — the Tor Project's official pure-Rust Tor. `onion-service-client`
+#    enables connecting to a v3 `.onion`; `tokio`+`rustls` give a pure-Rust async
+#    + TLS stack (no OpenSSL/native-tls system linkage, matching report-core's
+#    ureq-rustls choice). `static-sqlite` keeps the directory cache self-contained
+#    with no system sqlite. Pure-Rust + statically linked → no per-OS tor binary.
+#  tor-rtcompat — the Arti runtime-compat layer; `tokio`+`rustls` to match.
+#  tokio — Arti requires an async runtime; this crate owns it internally and
+#    presents a SYNC `IngestBackend::send` so report-core stays runtime-free.
+#  rand — bounded send-time jitter + random body padding (CSPRNG; already vetted
+#    in the workspace at =0.8.6).
+# NO vendor LLM/telemetry/SaaS SDK (AES Clause 5). NO hyper — the HTTP/1.1 POST
+# is hand-rolled over the Arti DataStream so every header byte is controlled
+# (fixed-minimal-header hygiene) and the hyper/tower tree is not pulled in.
+[dependencies]
+itasha-report-core = { path = "../itasha-report-core", version = "0.2.0" }
+arti-client = { version = "=0.43.0", default-features = false, features = [
+    "onion-service-client",
+    "tokio",
+    "rustls",
+    "compression",
+    # static-sqlite: bundle + statically link SQLite (Arti's keystore/dirmgr
+    # backend). Without it the build links a SYSTEM `sqlite3.lib`, which defeats
+    # the whole "pure-Rust, no per-OS system dependency" rationale for choosing
+    # Arti — the embedded transport must be self-contained on Win/macOS/Linux.
+    "static-sqlite",
+] }
+tor-rtcompat = { version = "=0.43.0", default-features = false, features = [
+    "tokio",
+    "rustls",
+] }
+tokio = { version = "=1.52.3", default-features = false, features = [
+    "rt-multi-thread",
+    "net",
+    "io-util",
+    "time",
+    "sync",
+] }
+rand = "=0.8.6"
+# serde_json — used ONLY to measure the padding item's header-byte length so the
+# padded envelope lands exactly on a size bucket. Already vetted in the workspace
+# (report-core pins the same =1.0.150); no new transitive tree.
+serde_json = "=1.0.150"
+
+[dev-dependencies]
+tokio = { version = "=1.52.3", default-features = false, features = [
+    "rt-multi-thread",
+    "net",
+    "io-util",
+    "time",
+    "sync",
+    "macros",
+] }
