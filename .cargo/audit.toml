@@ -27,4 +27,49 @@
 # Removal trigger: drop this ignore when `age` releases a version that depends on
 # `i18n-embed-fl >= 0.10` (which drops proc-macro-error2), or when age exposes a
 # feature to disable localization. Re-run `cargo audit` after any age bump.
-ignore = ["RUSTSEC-2026-0173"]
+#
+# ---------------------------------------------------------------------------
+# The three advisories below enter ONLY via the embedded Arti (pure-Rust Tor)
+# dependency tree pulled by the opt-in `itasha-report-transport-tor` crate (the
+# anonymous onion transport). None are present in the base `itasha-report-core`
+# tree, and none are exploitable in W1TN3SS's usage. Each is a documented,
+# root-cause-named, scoped exception — NOT a blanket downgrade of the gate.
+#
+# RUSTSEC-2023-0071 — `rsa` Marvin timing sidechannel (medium 5.9, NO FIX).
+#
+# Root cause (5-whys):
+#   1. Why is `rsa` in the tree? — `ssh-key-fork-arti` (Arti's keystore key
+#      format) declares `rsa` for RSA SSH-key parsing support.
+#   2. Why does Arti pull it? — `tor-key-forge` → `tor-hscrypto` use the SSH key
+#      *format* to persist onion-service keys.
+#   3. Are those keys RSA? — NO. Arti's onion-service + circuit keys are
+#      ed25519 / x25519 / curve25519; the `rsa` code path is never invoked.
+#   4. Is the Marvin attack reachable? — NO. The advisory requires RSA private-key
+#      *decryption/signing* operations; W1TN3SS performs none (it is a transitive
+#      parser dependency only, exercised on no W1TN3SS code path).
+#   5. Is there a fix? — NO upstream fix exists (the advisory itself states
+#      "no fixed upgrade is available"); this is the ecosystem-wide `rsa`
+#      constant-time gap that every Arti/SSH consumer carries.
+# Removal trigger: drop when the `rsa` crate ships a constant-time fix (tracked
+# upstream) OR when `ssh-key-fork-arti` drops the RSA feature. Re-run on any
+# arti-client bump.
+#
+# RUSTSEC-2024-0436 — `paste` unmaintained (warning, build-time only).
+#   `paste` is a BUILD-TIME proc-macro pulled by `slotmap-careful` (an Arti
+#   dependency). It emits no runtime code into any shipped binary and there is no
+#   security defect — only an "unmaintained" status with no fixed version.
+# Removal trigger: drop when `slotmap-careful` / Arti migrate off `paste`.
+#
+# RUSTSEC-2025-0141 — `bincode` unmaintained (warning).
+#   `bincode 2.0.1` sits in `Cargo.lock` as a transitive of an Arti-tree crate
+#   but is NOT reachable in the resolved build graph (`cargo tree -i bincode`
+#   prints "nothing to print"); it carries no runtime exposure and the advisory
+#   is "unmaintained"-class, not a vulnerability.
+# Removal trigger: drop when the lock no longer carries `bincode`, or upstream
+# adopts a maintained successor. Re-run on any arti-client bump.
+ignore = [
+    "RUSTSEC-2026-0173",
+    "RUSTSEC-2023-0071",
+    "RUSTSEC-2024-0436",
+    "RUSTSEC-2025-0141",
+]
