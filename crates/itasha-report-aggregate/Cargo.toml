@@ -1,0 +1,60 @@
+[package]
+name = "itasha-report-aggregate"
+description = "Tier-A: the truly-anonymous AGGREGATE-SIGNAL stream for the W1TN3SS reporting SDK. Produces a STAR (Sparse Threshold Aggregation Reporting) message for a low-dimensional crash-signature + coarse quasi-tuple; the ingest operator learns a signature ONLY once >= k (default 25) DISTINCT clients independently submit it, with NO per-user identifier. This is the ONLY W1TN3SS stream that can honestly be called 'anonymous' (k-anonymous over many reporters; survives singling-out / linkability / inference under GDPR Recital 26). Submitted over the Arti Tor onion transport for sender-anonymity. Separate crate (NOT a feature on itasha-report-core) so the STAR crypto dependency tree (ppoprf/adss/strobe-rs) + its cargo-vet surface are imported ONLY by apps that opt into Tier-A — the base crate's dep tree + #![forbid(unsafe_code)] stay untouched."
+# v0.1.0: first release of the truly-anonymous aggregate tier (Tier-A of the
+# two-tier honest model). Separate crate for the same reason as the Arti
+# transport: STAR pulls a crypto dependency tree (ppoprf, adss, strobe-rs,
+# curve25519-dalek via ppoprf) whose cargo-vet burden should fall ONLY on apps
+# that opt into Tier-A, never on the base itasha-report-core crate.
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+# Exact-pinned production dependencies (see dependency-management.md).
+# rationale:
+#  itasha-report-core — the SDK spine. We reuse its `quasi.rs` coarsening
+#    (coarsen_version / coarsen_os / coarsen_locale) for the coarse quasi-tuple,
+#    its `Report`/`Stream`/`Attachment` model, and (when the `tor` feature is on)
+#    its `IngestBackend` boundary. No re-implementation; this crate is pure
+#    Tier-A signal construction + STAR message production + a thin submission
+#    wiring.
+#  sta-rs — Brave/Mozilla's STAR (Sparse Threshold Aggregation Reporting)
+#    reference implementation (MPL-2.0). Provides `SingleMeasurement`,
+#    `MessageGenerator`, `Message`, `AssociatedData`, and the threshold-recovery
+#    (`share_recover`) primitives. We use the STARLite LOCAL-randomness path
+#    (`sample_local_randomness` + `Message::generate`) so there is NO dependency
+#    on a network randomness/OPRF server for v1 — the measurement domain
+#    (crash-signature + coarse tuple) plus the k-threshold are the protection.
+#    The high-entropy-domain caveat is documented in `signature.rs` + the docs.
+#  blake3 — stable, fast, OS-independent hashing for the crash-signature
+#    (symbol-name-only stack hash). Pure-Rust; `default-features=false` drops the
+#    rayon/mmap features we do not need (no parallelism, no file mmap).
+# NO vendor LLM/telemetry/SaaS SDK (AES Clause 5). The Tor submission path is an
+# OPTIONAL `tor` feature so the base build does not pull the Arti tree.
+[dependencies]
+itasha-report-core = { path = "../itasha-report-core", version = "0.2.0" }
+sta-rs = "=0.3.3"
+blake3 = { version = "=1.5.5", default-features = false }
+# rand — the CSPRNG for STARLite local randomness (already vetted in the
+# workspace at =0.8.6). sta-rs itself depends on rand ^0.8.5; pinning the same
+# exact version keeps one rand in the tree.
+rand = "=0.8.6"
+
+# The optional Tor submission path. When enabled, the truly-anonymous STAR
+# message is submitted over the Arti onion transport (sender-anonymity) by
+# reusing `itasha-report-transport-tor`'s `IngestBackend`. Default-OFF so the
+# base aggregate crate stays free of the Arti `tor-*` tree for apps that wire
+# their own transport.
+[features]
+default = []
+tor = ["dep:itasha-report-transport-tor"]
+
+[dependencies.itasha-report-transport-tor]
+path = "../itasha-report-transport-tor"
+version = "0.1.0"
+optional = true
+
+[dev-dependencies]
+# sta-rs recovery helpers are in the main crate; no extra dev-dep needed.

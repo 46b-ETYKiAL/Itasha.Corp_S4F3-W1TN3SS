@@ -5,6 +5,7 @@ members = [
     "crates/itasha-report-core",
     "crates/itasha-crash-capture",
     "crates/itasha-report-transport-tor",
+    "crates/itasha-report-aggregate",
 ]
 
 [workspace.package]
