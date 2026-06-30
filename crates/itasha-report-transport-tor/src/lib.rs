@@ -53,11 +53,13 @@
 #![warn(missing_docs)]
 
 pub mod config;
+pub mod connector;
 pub mod http;
 pub mod hygiene;
 pub mod transport;
 
 pub use config::TorTransportConfig;
+pub use connector::{ArtiConnector, OnionConnector};
 pub use transport::TorOnionTransport;
 
 /// The crate / transport name (diagnostics only — never sent on the wire; the
