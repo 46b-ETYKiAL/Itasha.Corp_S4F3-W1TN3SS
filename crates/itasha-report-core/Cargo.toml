@@ -35,9 +35,12 @@ age = { version = "=0.11.3", default-features = false }
 # (anonymity hardening #1, gap D-2). `rand::rng().fill_bytes` draws from the OS
 # CSPRNG, so the nonce carries NO time component and NO monotonic counter — two
 # reports are not time-orderable nor sequence-adjacent. Pinned to =0.8.6 to
-# match the version `age` already resolves (no new transitive tree) and the
-# `safe-to-deploy` cargo-vet exemption already on record. Pure safe-Rust at this
-# crate's surface (`#![forbid(unsafe_code)]`-clean).
+# match the version `age` already resolves, so report-core's OWN tree carries a
+# single rand (and the `safe-to-deploy` cargo-vet exemption already on record
+# applies). Note: a workspace build that also pulls the Arti transport tree
+# (itasha-report-transport-tor) resolves additional, newer rand majors for those
+# transitive deps — that is expected and outside this base crate's tree. Pure
+# safe-Rust at this crate's surface (`#![forbid(unsafe_code)]`-clean).
 rand = "=0.8.6"
 
 [dev-dependencies]

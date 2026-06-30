@@ -47,6 +47,11 @@ rand = "=0.8.6"
 # reusing `itasha-report-transport-tor`'s `IngestBackend`. Default-OFF so the
 # base aggregate crate stays free of the Arti `tor-*` tree for apps that wire
 # their own transport.
+#
+# MSRV note: this crate inherits the workspace `rust-version = 1.78` for its
+# DEFAULT (no-`tor`) build. Enabling `tor` pulls `itasha-report-transport-tor`,
+# whose Arti dependency raises the effective floor to Rust 1.89 (see that
+# crate's `rust-version`). Build `--features tor` on Rust 1.89+.
 [features]
 default = []
 tor = ["dep:itasha-report-transport-tor"]
