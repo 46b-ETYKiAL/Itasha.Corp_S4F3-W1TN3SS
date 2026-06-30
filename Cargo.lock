@@ -2181,7 +2181,7 @@ checksum = "4b3f7cef34251886990511df1c61443aa928499d598a9473929ab5a90a527304"
 
 [[package]]
 name = "itasha-crash-capture"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "crash-context",
  "crash-handler",

@@ -1,11 +1,20 @@
 [package]
 name = "itasha-crash-capture"
 description = "Unsafe-ISOLATED native minidump capture (Tier-2). The ONLY W1TN3SS crate allowed unsafe, so consuming apps stay #![forbid(unsafe_code)]."
-version.workspace = true
+# Explicit (not workspace-inherited 0.0.0) so a release tag maps to a real
+# semver and the crate is publishable — a tag-gated `v*` release must never ship
+# a 0.0.0 binary, and a path-dep without a version blocks `cargo publish`.
+# v0.1.0: first consumable release of the native Tier-2 capture, aligned with
+# itasha-report-transport-tor / itasha-report-aggregate.
+version = "0.1.0"
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
-rust-version.workspace = true
+# NOT workspace-inherited (1.78): the Embark crash stack sets the real floor —
+# `minidump-writer =0.12.0` declares `rust-version = "1.88"` / `edition = "2024"`,
+# so this crate cannot build below 1.88. The workspace 1.78 would under-claim and
+# break a 1.78–1.87 build. Verified from crates.io version metadata 2026-06-30.
+rust-version = "1.88"
 
 # Exact-pinned production dependencies (see dependency-management.md). These are
 # the Embark out-of-process crash-capture stack — they carry unsafe/FFI (signal
@@ -20,7 +29,7 @@ crash-handler = "=0.7.0"
 minidumper = "=0.10.1"
 minidump-writer = "=0.12.0"
 crash-context = "=0.6.3"
-itasha-report-core = { path = "../itasha-report-core" }
+itasha-report-core = { path = "../itasha-report-core", version = "0.2.0" }
 
 [dev-dependencies]
 # sadness-generator: Embark's controlled-crash harness for the (ignored,
